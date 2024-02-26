@@ -8,7 +8,7 @@ let disassembleSlice = (slice: Slice) => {
     let code = [];
     while (slice.bits.length > 0) {
         let [instruction, operands] = OpcodeParser.nextInstruction(slice);
-        if (instruction.mnemonic == "PUSHCONT_SHORT") {
+        if (instruction.mnemonic == "PUSHCONT_SHORT" || instruction.mnemonic == "PUSHCONT") {
             operands["s"] = disassembleSlice(operands["s"]);
         }
         if (instruction.mnemonic === "DICTPUSHCONST") {
