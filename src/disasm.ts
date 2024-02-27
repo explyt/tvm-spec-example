@@ -33,7 +33,7 @@ let getLoaders: () => { [key: string]: Loader } = () => ({
     int: (s, ops, args) => s.loadInt(args.size),
     uint: (s, ops, args) => s.loadUint(args.size),
     ref: (s, ops, args) => s.loadRef().slice(),
-    pushint_long: (s, ops, args) => s.loadBigInt(8 * s.loadUint(5) + 19),
+    pushint_long: (s, ops, args) => s.loadBigInt(8 * s.loadUint(5) + 19).toString(),
     subslice: (s, ops, args) => {
         let bitLength = (args.bits_padding ?? 0) + (args.bits_length_var ? 8 * ops[args.bits_length_var] : 0);
         let refLength = (args.refs_add ?? 0) + (args.refs_length_var ? ops[args.refs_length_var] : 0);

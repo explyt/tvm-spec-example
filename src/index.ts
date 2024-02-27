@@ -4,12 +4,104 @@ import { OpcodeParser, VarMap } from "./disasm"
 import { Stack } from "./stackAnalysis";
 import { bitsToBigInt, bitsToIntUint } from "ton3-core/dist/utils/numbers";
 
-let disassembleSlice = (slice: Slice) => {
-    let code = [];
+function toTitleCase(str: string) {
+    return str.replace(
+      /\w\S*/g,
+      function(txt) {
+        return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+      }
+    );
+  }
+
+// class TvmInst {
+//     mnemonic: string;
+//     operands: VarMap;
+
+//     constructor(mnemonic: string, operands: VarMap) {
+//         this.mnemonic = mnemonic;
+//         this.operands = operands;
+//     }
+
+//     toJSON() {
+//         return `Tvm${toTitleCase(this.mnemonic)}Inst: ` + JSON.stringify(this.operands)
+//     }
+// }
+
+interface TvmCodeBlock {
+    instList: TvmInst[];
+}
+
+class TvmMethod implements TvmCodeBlock {
+    id: number;
+    instList = []
+    
+    constructor(id: number) {
+        this.id = id;
+    }
+}
+
+class TvmLambda implements TvmCodeBlock {
+    instList = []
+}
+
+interface TvmInstLocation {
+    index: number;
+}
+
+class TvmInstMethodLocation implements TvmInstLocation {
+    methodId: number;
+    index: number;
+
+    constructor(methodId: number, index: number) {
+        this.methodId = methodId;
+        this.index = index;
+    }
+}
+
+class TvmInstLambdaLocation implements TvmInstLocation {
+    index: number;
+
+    constructor(index: number) {
+        this.index = index;
+    }
+}
+
+class TvmInst {
+    mnemonic: string;
+    location: TvmInstLocation;
+    operands: VarMap
+
+    constructor(mnemonic: string, location: TvmInstLocation, operands: VarMap) {
+        this.mnemonic = mnemonic
+        this.location = location
+        this.operands = operands
+    }
+
+    toJSON() {
+        let json: { [id: string] : any } = {}
+        json["mnemonic"] = this.mnemonic
+        json["location"] = this.location
+
+        for (const k in this.operands) {
+            json[k] = this.operands[k]
+        }
+
+        return json;
+    }
+}
+
+class TvmContract {
+    methods: { [methodId: number]: TvmMethod } = {}
+}
+
+let disassembleSlice = (slice: Slice, contractCode: TvmContract, methodId: number | null, instList: TvmInst[]) => {
+    // let code = [];
+    let instIndex = 0
     while (slice.bits.length > 0) {
         let [instruction, operands] = OpcodeParser.nextInstruction(slice);
         if (instruction.mnemonic == "PUSHCONT_SHORT" || instruction.mnemonic == "PUSHCONT") {
-            operands["s"] = disassembleSlice(operands["s"]);
+            let lambda = new TvmLambda()
+            operands["s"] = disassembleSlice(operands["s"], contractCode, null, lambda.instList);
         }
         if (instruction.mnemonic === "DICTPUSHCONST") {
             const keySize: number = operands["n"]
@@ -18,22 +110,43 @@ let disassembleSlice = (slice: Slice) => {
                 const keyNumber = bitsToIntUint(k, { type: "int" })
                 let valueSlice = v.slice()
                 
-                let instructions = disassembleSlice(valueSlice)
-                operands["m" + keyNumber] = instructions
+                let newMethod = new TvmMethod(keyNumber)
+                contractCode.methods[keyNumber] = newMethod
+
+                let instructions = disassembleSlice(valueSlice, contractCode, keyNumber, newMethod.instList)
+                // operands["m" + keyNumber] = instructions
             })
         }
         if (instruction.mnemonic === "PUSHREFCONT") {
-            operands["c"] = disassembleSlice(operands["c"]);
+            let lambda = new TvmLambda()
+            operands["c"] = disassembleSlice(operands["c"], contractCode, null, lambda.instList);
         }
-        code.push({ "instruction": instruction, "operands": operands, "inputs": instruction.value_flow?.inputs?.stack, "outputs": instruction.value_flow?.outputs?.stack });
+
+        let instLocation = undefined
+        if (methodId == null) {
+            instLocation = new TvmInstLambdaLocation(instIndex)
+        } else {
+            instLocation = new TvmInstMethodLocation(methodId, instIndex)
+        }
+        instIndex++
+        // let operandsString = Object.values(operands).map(x => `${x}`);
+        const tvmInst = new TvmInst(instruction.mnemonic, instLocation, operands)
+        instList.push(tvmInst)
+
+        // code.push({ "instruction": instruction, "operands": operands, "inputs": instruction.value_flow?.inputs?.stack, "outputs": instruction.value_flow?.outputs?.stack });
     }
-    return code;
+    // return code;
+    return instList;
 };
 
 const boc = BOC.from(new Uint8Array(fs.readFileSync(process.argv[2])))
 const slice = boc.root[0].slice();
+let contractCode = new TvmContract()
+const maxMethodId = Number.MAX_SAFE_INTEGER
+let mainMethod = new TvmMethod(maxMethodId)
+contractCode.methods[maxMethodId] = mainMethod
 
-let instructions = disassembleSlice(slice);
+let instructions = disassembleSlice(slice, contractCode, maxMethodId, mainMethod.instList);
 
 let stack = new Stack([{ name: "body" }, { name: "selector" }]);
 
@@ -53,6 +166,17 @@ let analyzeContStack = (instructions: any, stack: Stack) => {
                 newOperands[operand] = v;
             }
 
+            // valueFlow.push({
+            //     opcode: mnemonic,
+            //     operands: newOperands
+            // });
+
+            // let inst = []
+            // inst.push({ "opcode": mnemonic })
+            // for (const operand in instruction.operands) {
+            //     inst.push({ operand: newOperands[operand] })
+            // }
+            // valueFlow.push(inst)
             valueFlow.push({
                 opcode: mnemonic,
                 operands: newOperands
@@ -83,48 +207,63 @@ let analyzeContStack = (instructions: any, stack: Stack) => {
             }
             newOperands[operand] = v;
         }
+        // valueFlow.push({
+        //     opcode: instruction.instruction.mnemonic,
+        //     operands: newOperands,
+        //     // inputs: newInputs,
+        //     // outputs: newOutputs
+        // });
+        
+        // let inst = []
+        // inst.push({ "opcode": instruction.instruction.mnemonic })
+        // for (const operand in instruction.operands) {
+        //     inst.push({ operand: newOperands[operand] })
+        // }
+        // valueFlow.push(inst)
         valueFlow.push({
             opcode: instruction.instruction.mnemonic,
-            operands: newOperands,
-            // inputs: newInputs,
-            // outputs: newOutputs
+            operands: newOperands
         });
     }
     return valueFlow;
 };
 
-let vizualize = (valueFlow: any) => {
-    const indentString = (str: string, count: number, indent = " ") => {
-        indent = indent.repeat(count);
-        return str.replace(/^/gm, indent);
-      };
-    let code = "";
-    for (let instruction of valueFlow) {
-        if (instruction.inputs == undefined || instruction.outputs == undefined) {
-            continue;
-        }
-        let outputVars = Object.values(instruction.outputs).map((output: any) => output.var.name).join(', ');
-        let inputVars = Object.values(instruction.inputs).map((input: any) => input.var.name);
-        let conts = [];
-        for (const operand in instruction.operands) {
-            let v = instruction.operands[operand];
-            if (v instanceof Array) {
-                conts.push("{\n" + indentString(vizualize(v), 4) + "\n}");
-                delete instruction.operands[operand];
-            }
-        }
-        let operands = Object.values(instruction.operands).map(x => `${x}`);
-        let inputStr = conts.concat(...operands).concat(...inputVars).join(', ');
-        code += (outputVars ? `const ${outputVars} = ` : '') + `${instruction.opcode}(${inputStr});\n`;
-    }
-    return code;
-};
+// let vizualize = (valueFlow: any) => {
+//     const indentString = (str: string, count: number, indent = " ") => {
+//         indent = indent.repeat(count);
+//         return str.replace(/^/gm, indent);
+//       };
+//     let code = "";
+//     for (let instruction of valueFlow) {
+//         if (instruction.inputs == undefined || instruction.outputs == undefined) {
+//             continue;
+//         }
+//         let outputVars = Object.values(instruction.outputs).map((output: any) => output.var.name).join(', ');
+//         let inputVars = Object.values(instruction.inputs).map((input: any) => input.var.name);
+//         let conts = [];
+//         for (const operand in instruction.operands) {
+//             let v = instruction.operands[operand];
+//             if (v instanceof Array) {
+//                 conts.push("{\n" + indentString(vizualize(v), 4) + "\n}");
+//                 delete instruction.operands[operand];
+//             }
+//         }
+//         let operands = Object.values(instruction.operands).map(x => `${x}`);
+//         let inputStr = conts.concat(...operands).concat(...inputVars).join(', ');
+//         code += (outputVars ? `const ${outputVars} = ` : '') + `${instruction.opcode}(${inputStr});\n`;
+//     }
+//     return code;
+// };
 
-let valueFlow = analyzeContStack(instructions, stack);
+// let valueFlow = analyzeContStack(instructions, stack);
 
-let code = vizualize(valueFlow);
+// let code = vizualize(valueFlow);
 
-console.dir(valueFlow, { depth: null, color: true })
+// console.dir(valueFlow, { depth: null, color: true })
+// console.dir(contractCode, { depth: null, color: true })
+// console.dir(JSON.stringify(contractCode), { depth: null, color: true })
+console.log(JSON.stringify(contractCode, null, 1))
+// console.dir(JSON.stringify(valueFlow), { depth: null, color: true })
 // console.log(code)
 
 
