@@ -28,10 +28,12 @@ function toTitleCase(str: string) {
 // }
 
 interface TvmCodeBlock {
+    // type: string
     instList: TvmInst[];
 }
 
 class TvmMethod implements TvmCodeBlock {
+    // type: string = "TvmMethod"
     id: number;
     instList = []
     
@@ -41,14 +43,17 @@ class TvmMethod implements TvmCodeBlock {
 }
 
 class TvmLambda implements TvmCodeBlock {
+    // type: string = "TvmLambda"
     instList = []
 }
 
 interface TvmInstLocation {
+    type: string
     index: number;
 }
 
 class TvmInstMethodLocation implements TvmInstLocation {
+    type: string = "TvmInstMethodLocation"
     methodId: number;
     index: number;
 
@@ -59,6 +64,7 @@ class TvmInstMethodLocation implements TvmInstLocation {
 }
 
 class TvmInstLambdaLocation implements TvmInstLocation {
+    type: string = "TvmInstLambdaLocation"
     index: number;
 
     constructor(index: number) {
@@ -67,19 +73,19 @@ class TvmInstLambdaLocation implements TvmInstLocation {
 }
 
 class TvmInst {
-    mnemonic: string;
+    type: string;
     location: TvmInstLocation;
     operands: VarMap
 
     constructor(mnemonic: string, location: TvmInstLocation, operands: VarMap) {
-        this.mnemonic = mnemonic
+        this.type = mnemonic
         this.location = location
         this.operands = operands
     }
 
     toJSON() {
         let json: { [id: string] : any } = {}
-        json["mnemonic"] = this.mnemonic
+        json["type"] = this.type
         json["location"] = this.location
 
         for (const k in this.operands) {
@@ -116,6 +122,9 @@ let disassembleSlice = (slice: Slice, contractCode: TvmContract, methodId: numbe
                 let instructions = disassembleSlice(valueSlice, contractCode, keyNumber, newMethod.instList)
                 // operands["m" + keyNumber] = instructions
             })
+
+            // Keep just key size
+            delete operands["d"]
         }
         if (instruction.mnemonic === "PUSHREFCONT") {
             let lambda = new TvmLambda()
@@ -142,7 +151,7 @@ let disassembleSlice = (slice: Slice, contractCode: TvmContract, methodId: numbe
 const boc = BOC.from(new Uint8Array(fs.readFileSync(process.argv[2])))
 const slice = boc.root[0].slice();
 let contractCode = new TvmContract()
-const maxMethodId = Number.MAX_SAFE_INTEGER
+const maxMethodId = 2147483647
 let mainMethod = new TvmMethod(maxMethodId)
 contractCode.methods[maxMethodId] = mainMethod
 
