@@ -105,17 +105,18 @@ let disassembleSlice = (slice: Slice, contractCode: TvmContract, methodId: numbe
     let instIndex = 0
     while (slice.bits.length > 0) {
         let [instruction, operands] = OpcodeParser.nextInstruction(slice);
-        if (instruction.mnemonic == "PUSHCONT_SHORT" || instruction.mnemonic == "PUSHCONT") {
+        const mnemonic = instruction.mnemonic;
+        if (mnemonic == "PUSHCONT_SHORT" || mnemonic == "PUSHCONT") {
             let lambda = new TvmLambda()
             operands["s"] = disassembleSlice(operands["s"], contractCode, null, lambda.instList);
         }
-        if (instruction.mnemonic === "DICTPUSHCONST") {
+        if (mnemonic === "DICTPUSHCONST") {
             const keySize: number = operands["n"]
             let hashMap = Hashmap.parse(keySize, operands["d"])
             hashMap.forEach((k: Bit[], v: Cell) => {
                 const keyNumber = bitsToIntUint(k, { type: "int" })
                 let valueSlice = v.slice()
-                
+
                 let newMethod = new TvmMethod(keyNumber)
                 contractCode.methods[keyNumber] = newMethod
 
@@ -126,7 +127,10 @@ let disassembleSlice = (slice: Slice, contractCode: TvmContract, methodId: numbe
             // Keep just key size
             delete operands["d"]
         }
-        if (instruction.mnemonic === "PUSHREFCONT") {
+        if (mnemonic === "PUSHREFCONT" || mnemonic === "IFREF" || mnemonic === "IFNOTREF" || mnemonic === "IFJMPREF"
+          || mnemonic === "IFNOTJMPREF" || mnemonic === "IFREFELSE" || mnemonic === "IFELSEREF" || mnemonic === "IFREFELSEREF"
+          || mnemonic === "IFBITJMPREF" || mnemonic === "IFNBITJMPREF"
+        ) {
             let lambda = new TvmLambda()
             operands["c"] = disassembleSlice(operands["c"], contractCode, null, lambda.instList);
         }
