@@ -128,11 +128,16 @@ let disassembleSlice = (slice: Slice, contractCode: TvmContract, methodId: numbe
             delete operands["d"]
         }
         if (mnemonic === "PUSHREFCONT" || mnemonic === "IFREF" || mnemonic === "IFNOTREF" || mnemonic === "IFJMPREF"
-          || mnemonic === "IFNOTJMPREF" || mnemonic === "IFREFELSE" || mnemonic === "IFELSEREF" || mnemonic === "IFREFELSEREF"
-          || mnemonic === "IFBITJMPREF" || mnemonic === "IFNBITJMPREF" || mnemonic === "CALLREF" || mnemonic === "PUSHREF"
-        ) {
-            let lambda = new TvmLambda()
+            || mnemonic === "IFNOTJMPREF" || mnemonic === "IFREFELSE" || mnemonic === "IFELSEREF"
+            || mnemonic === "IFBITJMPREF" || mnemonic === "IFNBITJMPREF" || mnemonic === "CALLREF" || mnemonic === "PUSHREF") {
+            let lambda = new TvmLambda();
             operands["c"] = disassembleSlice(operands["c"], contractCode, null, lambda.instList);
+        }
+        if (mnemonic === "IFREFELSEREF") {
+            let lambda1 = new TvmLambda();
+            let lambda2 = new TvmLambda();
+            operands["c1"] = disassembleSlice(operands["c1"], contractCode, null, lambda1.instList);
+            operands["c2"] = disassembleSlice(operands["c2"], contractCode, null, lambda2.instList);
         }
 
         let instLocation = undefined
