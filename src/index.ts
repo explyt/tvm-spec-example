@@ -34,10 +34,10 @@ interface TvmCodeBlock {
 
 class TvmMethod implements TvmCodeBlock {
     // type: string = "TvmMethod"
-    id: number;
+    id: string;
     instList = []
     
-    constructor(id: number) {
+    constructor(id: string) {
         this.id = id;
     }
 }
@@ -54,10 +54,10 @@ interface TvmInstLocation {
 
 class TvmInstMethodLocation implements TvmInstLocation {
     type: string = "TvmInstMethodLocation"
-    methodId: number;
+    methodId: string;
     index: number;
 
-    constructor(methodId: number, index: number) {
+    constructor(methodId: string, index: number) {
         this.methodId = methodId;
         this.index = index;
     }
@@ -117,7 +117,7 @@ let disassembleSlice = (slice: Slice, contractCode: TvmContract, methodId: numbe
                 const keyNumber = bitsToIntUint(k, { type: "int" })
                 let valueSlice = v.slice()
 
-                let newMethod = new TvmMethod(keyNumber)
+                let newMethod = new TvmMethod(keyNumber.toString())
                 contractCode.methods[keyNumber] = newMethod
 
                 let instructions = disassembleSlice(valueSlice, contractCode, keyNumber, newMethod.instList)
@@ -144,7 +144,7 @@ let disassembleSlice = (slice: Slice, contractCode: TvmContract, methodId: numbe
         if (methodId == null) {
             instLocation = new TvmInstLambdaLocation(instIndex)
         } else {
-            instLocation = new TvmInstMethodLocation(methodId, instIndex)
+            instLocation = new TvmInstMethodLocation(methodId.toString(), instIndex)
         }
         instIndex++
         // let operandsString = Object.values(operands).map(x => `${x}`);
@@ -161,7 +161,7 @@ const boc = BOC.from(new Uint8Array(fs.readFileSync(process.argv[2])))
 const slice = boc.root[0].slice();
 let contractCode = new TvmContract()
 const maxMethodId = 2147483647
-let mainMethod = new TvmMethod(maxMethodId)
+let mainMethod = new TvmMethod(maxMethodId.toString())
 contractCode.methods[maxMethodId] = mainMethod
 
 let instructions = disassembleSlice(slice, contractCode, maxMethodId, mainMethod.instList);
