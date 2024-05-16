@@ -129,7 +129,7 @@ let disassembleSlice = (slice: Slice, contractCode: TvmContract, methodId: numbe
         }
         if (mnemonic === "PUSHREFCONT" || mnemonic === "IFREF" || mnemonic === "IFNOTREF" || mnemonic === "IFJMPREF"
             || mnemonic === "IFNOTJMPREF" || mnemonic === "IFREFELSE" || mnemonic === "IFELSEREF"
-            || mnemonic === "IFBITJMPREF" || mnemonic === "IFNBITJMPREF" || mnemonic === "CALLREF" || mnemonic === "PUSHREF") {
+            || mnemonic === "IFBITJMPREF" || mnemonic === "IFNBITJMPREF" || mnemonic === "CALLREF") {
             let lambda = new TvmLambda();
             operands["c"] = disassembleSlice(operands["c"], contractCode, null, lambda.instList);
         }
