@@ -102,7 +102,7 @@ class TvmContract {
 
 let disassembleSlice = (slice: Slice, contractCode: TvmContract, methodId: number | null, instList: TvmInst[]) => {
     // let code = [];
-    let instIndex = 0
+    let instIndex = instList.length
     while (slice.bits.length > 0) {
         let [instruction, operands] = OpcodeParser.nextInstruction(slice);
         const mnemonic = instruction.mnemonic;
@@ -153,6 +153,10 @@ let disassembleSlice = (slice: Slice, contractCode: TvmContract, methodId: numbe
 
         // code.push({ "instruction": instruction, "operands": operands, "inputs": instruction.value_flow?.inputs?.stack, "outputs": instruction.value_flow?.outputs?.stack });
     }
+    while (slice.refs.length > 0) {
+      disassembleSlice(slice.loadRef().slice(), contractCode, methodId, instList)
+    }
+
     // return code;
     return instList;
 };
