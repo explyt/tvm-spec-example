@@ -6,11 +6,10 @@ PoC disassembler in just 150 lines of TypeScript using data from [tvm-spec](http
 
 ## Usage
 ```bash
-git clone --recursive https://github.com/hacker-volodya/tvm-spec-example
+git clone -b disasm-methods --recursive https://github.com/explyt/tvm-spec-example
 cd tvm-spec-example
 npm i
 npm run build
-node dist/index.js test_contracts/simple-walet.boc
 ```
 
 To regenerate tvm-spec interfaces from schema:
