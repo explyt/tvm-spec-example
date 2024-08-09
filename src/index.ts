@@ -108,7 +108,7 @@ let disassembleSlice = (slice: Slice, contractCode: TvmContract, methodId: numbe
         const mnemonic = instruction.mnemonic;
         if (mnemonic == "PUSHCONT_SHORT" || mnemonic == "PUSHCONT") {
             let lambda = new TvmLambda()
-            operands["s"] = disassembleSlice(operands["s"], contractCode, null, lambda.instList);
+            operands["c"] = disassembleSlice(operands["c"], contractCode, null, lambda.instList);
         }
         if (mnemonic === "DICTPUSHCONST") {
             const keySize: number = operands["n"]
